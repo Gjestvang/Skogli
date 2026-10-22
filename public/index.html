@@ -2,7 +2,7 @@
 <html lang="nb">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Forsinkelseslogg</title>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
 <style>
@@ -12,6 +12,7 @@
 :root[data-theme="dark"]{--bg:#0F161C;--surface:#17212A;--ink:#E8EEF3;--mute:#93A1AE;--line:#2A3743;--accent:#FF6B9A;color-scheme:dark}
 *{box-sizing:border-box}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
+html,body{touch-action:pan-x pan-y}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.45}
 main{max-width:640px;margin:0 auto;padding:24px 18px 48px}
 h1{font-size:clamp(2rem,9vw,3.2rem);font-weight:800;letter-spacing:-.035em;line-height:1;margin:8px 0 28px}
@@ -26,9 +27,13 @@ h2{font-size:1.05rem;font-weight:600;margin:36px 0 12px}
 .stats span{color:var(--mute);font-size:.85rem}
 .add{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
 label{display:grid;gap:4px;font-size:.85rem;color:var(--mute)}
-input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;width:100%}
+input{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;width:100%;min-width:0;min-height:44px;-webkit-appearance:none;appearance:none}
+input[type=date]{display:block;text-align:left}
+input::-webkit-date-and-time-value{text-align:left}
 input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+.row label{min-width:0}
+@media (max-width:360px){.row{grid-template-columns:1fr}}
 .chips{display:flex;gap:8px;flex-wrap:wrap}
 button{font:inherit;cursor:pointer;border-radius:6px}
 .chip{background:none;border:1px solid var(--line);color:var(--ink);padding:6px 12px}
@@ -88,6 +93,7 @@ button{font:inherit;cursor:pointer;border-radius:6px}
 </main>
 
 <script>
+['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault()));
 const API='/api/entries';
 let entries=[],code='';
 try{code=localStorage.getItem('forsinkelseslogg:kode')||''}catch(e){}
