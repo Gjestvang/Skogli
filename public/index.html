@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Forsinkelseslogg</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EEF2F5;--surface:#fff;--ink:#16202B;--mute:#5E6C7A;--line:#D5DDE4;--accent:#D6336C;color-scheme:light;
+ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F161C;--surface:#17212A;--ink:#E8EEF3;--mute:#93A1AE;--line:#2A3743;--accent:#FF6B9A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F161C;--surface:#17212A;--ink:#E8EEF3;--mute:#93A1AE;--line:#2A3743;--accent:#FF6B9A;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.45}
+main{max-width:640px;margin:0 auto;padding:24px 18px 48px}
+h1{font-size:clamp(2rem,9vw,3.2rem);font-weight:800;letter-spacing:-.035em;line-height:1;margin:8px 0 28px}
+h2{font-size:1.05rem;font-weight:600;margin:36px 0 12px}
+.hero{border-bottom:2px solid var(--ink);padding-bottom:18px}
+.hero small{display:block;color:var(--mute);font-size:.95rem}
+.big{font-size:clamp(3rem,16vw,5.5rem);font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--accent);margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);border-bottom:1px solid var(--line)}
+.stats div{padding:14px 10px 14px 0}
+.stats div+div{padding-left:12px;border-left:1px solid var(--line)}
+.stats b{display:block;font-size:1.25rem;font-weight:600;letter-spacing:-.02em}
+.stats span{color:var(--mute);font-size:.85rem}
+.add{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--mute)}
+input{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;width:100%}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+button{font:inherit;cursor:pointer;border-radius:6px}
+.chip{background:none;border:1px solid var(--line);color:var(--ink);padding:6px 12px}
+.chip:hover{border-color:var(--accent)}
+.go{background:var(--accent);color:#fff;border:0;padding:12px;font-weight:600}
+.err{color:var(--accent);font-size:.9rem;min-height:1.2em;margin:0}
+.wk{display:grid;grid-template-columns:5.5rem 1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.wk .t{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.wk .t i{display:block;height:100%;background:var(--accent);border-radius:5px}
+.wk em{font-style:normal;color:var(--mute);font-size:.8rem;display:block}
+.wk .v{text-align:right;font-weight:600;white-space:nowrap}
+.log{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.log small{display:block;color:var(--mute)}
+.del{background:none;border:0;color:var(--mute);padding:6px;text-decoration:underline}
+.more{background:none;border:0;color:var(--ink);text-decoration:underline;padding:10px 0}
+.empty{color:var(--mute);padding:8px 0}
+.note{color:var(--mute);font-size:.8rem;margin-top:32px}
+.dup{background:color-mix(in srgb,var(--accent) 12%,var(--surface));border-left:3px solid var(--accent);padding:8px 10px;margin:0;font-size:.9rem;border-radius:4px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <h1>Forsinkelseslogg</h1>
+
+ <section class="hero">
+  <small>Forsinket denne uken</small>
+  <div class="big" id="wk">0 min</div>
+ </section>
+ <section class="stats">
+  <div><b id="m30">0 min</b><span>Siste 30 dager</span></div>
+  <div><b id="y1">0 min</b><span>Siste år</span></div>
+  <div><b id="avg">0 min</b><span>Snitt per uke</span></div>
+ </section>
+
+ <h2>Ny forsinkelse</h2>
+ <div class="add">
+  <div class="row">
+   <label>Dato<input type="date" id="date"></label>
+   <label>Minutter for sent<input type="number" id="min" min="1" max="600" inputmode="numeric" placeholder="f.eks. 12"></label>
+  </div>
+  <div class="chips" id="chips"></div>
+  <label>Notat (valgfritt)<input type="text" id="note" maxlength="80" placeholder="f.eks. «Bussen gikk visst»"></label>
+  <p class="dup" id="dup" role="status" hidden></p>
+  <p class="err" id="err" role="alert"></p>
+  <button class="go" id="save">Legg til</button>
+ </div>
+
+ <h2>Uke for uke</h2>
+ <div id="weeks"></div>
+ <button class="more" id="moreW" hidden>Vis alle uker</button>
+
+ <h2>Alle registreringer</h2>
+ <div id="log"></div>
+
+ <p class="note"><span id="stat">Kobler til …</span> Uken starter mandag. «Snitt per uke» regnes fra uken av første registrering, og uker uten forsinkelse teller med.</p>
+</main>
+
+<script>
+const API='/api/entries';
+let entries=[],code='';
+try{code=localStorage.getItem('forsinkelseslogg:kode')||''}catch(e){}
+const saveCode=()=>{try{localStorage.setItem('forsinkelseslogg:kode',code)}catch(e){}};
+const $=id=>document.getElementById(id);
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const monday=d=>{const x=new Date(d.getFullYear(),d.getMonth(),d.getDate());x.setDate(x.getDate()-(x.getDay()+6)%7);return x};
+const isoWeek=d=>{const t=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));t.setUTCDate(t.getUTCDate()+4-(t.getUTCDay()||7));return Math.ceil(((t-Date.UTC(t.getUTCFullYear(),0,1))/864e5+1)/7)};
+const fmt=m=>{m=Math.round(m);if(m<60)return m+' min';const h=Math.floor(m/60),r=m%60;return h+' t'+(r?' '+r+' min':'')};
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const sum=a=>a.reduce((s,e)=>s+e.min,0);
+let showAll=false;
+
+[5,10,15,30].forEach(n=>{const b=el('button','chip',n+' min');b.type='button';b.onclick=()=>{$('min').value=n;$('min').focus()};$('chips').appendChild(b)});
+$('date').value=iso(new Date());
+
+// Writes send the shared code; on 401 we ask for it and retry once per answer.
+async function api(method,body,q){
+ const h={'content-type':'application/json'};if(code)h['x-skrivekode']=code;
+ const r=await fetch(API+(q||''),{method,headers:h,body:body?JSON.stringify(body):undefined});
+ if(r.status===401){const c=prompt(code?'Feil skrivekode. Prøv igjen:':'Skriv inn skrivekoden:');if(c){code=c.trim();saveCode();return api(method,body,q)}throw new Error('kode')}
+ if(!r.ok)throw new Error(r.status);
+ return r.json();
+}
+async function add(){
+ const date=$('date').value,min=parseInt($('min').value,10);
+ if(!date){$('err').textContent='Velg en dato.';return}
+ if(!(min>=1&&min<=600)){$('err').textContent='Skriv inn antall minutter (1–600).';return}
+ $('err').textContent='';$('save').disabled=true;
+ try{await api('POST',{date,min,note:$('note').value.trim()});$('min').value='';$('note').value='';await load()}
+ catch(x){$('err').textContent=x.message==='kode'?'Ikke lagret: trenger skrivekode.':'Kunne ikke lagre. Prøv igjen.'}
+ $('save').disabled=false;
+}
+async function remove(id){
+ try{await api('DELETE',null,'?id='+encodeURIComponent(id));await load()}
+ catch(x){$('err').textContent=x.message==='kode'?'Ikke slettet: trenger skrivekode.':'Kunne ikke slette. Prøv igjen.'}
+}
+async function load(){
+ try{
+  const r=await fetch(API,{cache:'no-store'});if(!r.ok)throw 0;
+  entries=(await r.json()).entries||[];
+  $('stat').textContent='Delt liste: oppdateres automatisk for alle med lenken.';
+ }catch(e){$('stat').textContent='Får ikke kontakt med serveren akkurat nå. Prøver igjen …'}
+ render();
+}
+function checkDup(){
+ const d=$('date').value,box=$('dup');
+ const hit=d?entries.filter(e=>e.date===d):[];
+ if(!hit.length){box.hidden=true;$('save').textContent='Legg til';return}
+ const label=iso(new Date())===d?'i dag':parse(d).toLocaleDateString('nb-NO',{day:'numeric',month:'long'});
+ box.textContent='Allerede registrert for '+label+': '+hit.map(e=>fmt(e.min)).join(', ')+'.';
+ box.hidden=false;$('save').textContent='Legg til likevel';
+}
+$('date').addEventListener('change',checkDup);
+$('save').onclick=add;
+['min','note'].forEach(i=>$(i).addEventListener('keydown',e=>{if(e.key==='Enter')add()}));
+$('moreW').onclick=()=>{showAll=!showAll;render()};
+
+function render(){
+ checkDup();
+ const today=new Date();today.setHours(0,0,0,0);
+ const wk=monday(today),tm=d=>parse(d).getTime();
+ $('wk').textContent=fmt(sum(entries.filter(e=>monday(parse(e.date)).getTime()===wk.getTime())));
+ const d30=new Date(today);d30.setDate(d30.getDate()-30);
+ const d365=new Date(today);d365.setFullYear(d365.getFullYear()-1);
+ $('m30').textContent=fmt(sum(entries.filter(e=>tm(e.date)>=d30.getTime()&&tm(e.date)<=today.getTime())));
+ $('y1').textContent=fmt(sum(entries.filter(e=>tm(e.date)>=d365.getTime()&&tm(e.date)<=today.getTime())));
+
+ const W=$('weeks'),L=$('log');W.replaceChildren();L.replaceChildren();
+ if(!entries.length){
+  $('avg').textContent='0 min';$('moreW').hidden=true;
+  W.appendChild(el('p','empty','Ingen registreringer ennå. Legg inn første forsinkelse over.'));
+  L.appendChild(el('p','empty','Tomt her også.'));return;
+ }
+ const sorted=[...entries].sort((a,b)=>a.date<b.date?1:a.date>b.date?-1:0);
+ const first=monday(parse(sorted[sorted.length-1].date));
+ const lastE=monday(parse(sorted[0].date));
+ const end=lastE>wk?lastE:wk;
+ const nWeeks=Math.round((end-first)/(7*864e5))+1;
+ $('avg').textContent=fmt(sum(entries)/nWeeks);
+
+ const by={};entries.forEach(e=>{const k=iso(monday(parse(e.date)));(by[k]=by[k]||{s:0,n:0});by[k].s+=e.min;by[k].n++});
+ const rows=[];
+ for(let d=new Date(end);d>=first;d.setDate(d.getDate()-7)){const k=iso(d);rows.push({d:new Date(d),s:(by[k]||{s:0}).s,n:(by[k]||{n:0}).n})}
+ const max=Math.max(...rows.map(r=>r.s),1);
+ (showAll?rows:rows.slice(0,8)).forEach(r=>{
+  const row=el('div','wk');
+  const a=el('div',null,'Uke '+isoWeek(r.d));
+  a.appendChild(el('em',null,r.d.toLocaleDateString('nb-NO',{day:'numeric',month:'short'})));
+  const t=el('div','t'),i=document.createElement('i');i.style.width=(r.s/max*100)+'%';t.appendChild(i);
+  const v=el('div','v',r.s?fmt(r.s):'–');v.appendChild(el('em',null,r.n?r.n+(r.n===1?' gang':' ganger'):'i tide'));
+  row.append(a,t,v);W.appendChild(row);
+ });
+ $('moreW').hidden=rows.length<=8;
+ $('moreW').textContent=showAll?'Vis færre uker':'Vis alle '+rows.length+' uker';
+
+ sorted.forEach(e=>{
+  const row=el('div','log');
+  const a=el('div',null,parse(e.date).toLocaleDateString('nb-NO',{weekday:'short',day:'numeric',month:'short',year:'numeric'}));
+  if(e.note)a.appendChild(el('small',null,e.note));
+  const b=el('b',null,fmt(e.min));
+  const d=el('button','del','Slett');d.type='button';
+  d.onclick=()=>{if(confirm('Slette denne registreringen?'))remove(e.id)};
+  row.append(a,b,d);L.appendChild(row);
+ });
+}
+load();
+setInterval(()=>{if(!document.hidden)load()},10000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script>
+</body>
+</html>
