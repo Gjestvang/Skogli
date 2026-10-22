@@ -9,10 +9,14 @@ const json = (body, status = 200) =>
     headers: { "content-type": "application/json", "cache-control": "no-store" },
   });
 
+// Read from both the Netlify global and process.env, and ignore stray whitespace.
+const writeCode = () =>
+  String(globalThis.Netlify?.env?.get("SKRIVEKODE") ?? process.env.SKRIVEKODE ?? "").trim();
+
 const authorized = (req) => {
-  const code = Netlify.env.get("SKRIVEKODE");
+  const code = writeCode();
   if (!code) return true; // no code set: anyone with the link may write
-  return req.headers.get("x-skrivekode") === code;
+  return (req.headers.get("x-skrivekode") || "").trim() === code;
 };
 
 export default async (req) => {
@@ -21,7 +25,7 @@ export default async (req) => {
   if (req.method === "GET") {
     const { blobs } = await s.list();
     const entries = (await Promise.all(blobs.map((b) => s.get(b.key, { type: "json" })))).filter(Boolean);
-    return json({ entries, needsCode: !!Netlify.env.get("SKRIVEKODE") });
+    return json({ entries, needsCode: !!writeCode() });
   }
 
   if (!authorized(req)) return json({ error: "Feil skrivekode" }, 401);
