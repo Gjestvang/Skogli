@@ -6,6 +6,7 @@ Alle som åpner lenken ser de samme dataene, og siden henter nye data hvert 10. 
 ## Innhold
 - `public/index.html` – selve appen
 - `netlify/functions/entries.mjs` – serverfunksjonen (lese, legge til, slette)
+- `public/betting.html` + `netlify/functions/betting.mjs` – bettingsiden (`/api/betting`). Tre profiler med 100 credits hver, bets lagres i Netlify Blobs og deles mellom alle. Samme skrivekode gjelder.
 - `netlify.toml`, `package.json` – oppsett
 
 ## Publisere

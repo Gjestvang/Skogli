@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Forsinkelsesbetting</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#EEF2F5;--surface:#fff;--ink:#16202B;--mute:#5E6C7A;--line:#D5DDE4;--accent:#D6336C;--good:#1F8A5B;color-scheme:light;
+ box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0F161C;--surface:#17212A;--ink:#E8EEF3;--mute:#93A1AE;--line:#2A3743;--accent:#FF6B9A;--good:#4CC38A;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0F161C;--surface:#17212A;--ink:#E8EEF3;--mute:#93A1AE;--line:#2A3743;--accent:#FF6B9A;--good:#4CC38A;color-scheme:dark}
+*{box-sizing:border-box}
+html,body{touch-action:pan-x pan-y}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.45}
+main{max-width:640px;margin:0 auto;padding:24px 18px 48px}
+nav{display:flex;gap:16px;font-size:.95rem}
+nav a{color:var(--mute);text-decoration:none;padding:6px 0}
+nav a[aria-current]{color:var(--ink);font-weight:600;border-bottom:2px solid var(--accent)}
+h1{font-size:clamp(2rem,9vw,3.2rem);font-weight:800;letter-spacing:-.035em;line-height:1;margin:16px 0 24px}
+h2{font-size:1.05rem;font-weight:600;margin:32px 0 12px}
+h3{font-size:1rem;font-weight:600;margin:0}
+.players{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.player{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:left;color:var(--ink);min-width:0}
+.player[aria-pressed=true]{border:2px solid var(--accent);padding:11px}
+.player span{display:block;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.player b{display:block;font-size:1.5rem;font-weight:800;letter-spacing:-.03em}
+.player small{color:var(--mute);font-size:.75rem}
+.me{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin-top:10px;font-size:.9rem;color:var(--mute)}
+.link{background:none;border:0;color:var(--ink);text-decoration:underline;padding:6px 0;font-size:.9rem}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px;margin-bottom:12px}
+.status{font-size:.95rem;margin:0}
+.status b{color:var(--accent)}
+label{display:grid;gap:4px;font-size:.85rem;color:var(--mute)}
+input{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;width:100%;min-width:0;min-height:44px;-webkit-appearance:none;appearance:none}
+input[type=date]{display:block;text-align:left}
+input::-webkit-date-and-time-value{text-align:left}
+input:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+button{font:inherit;cursor:pointer;border-radius:6px}
+button:disabled{opacity:.5;cursor:default}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.seg button{background:none;border:1px solid var(--line);color:var(--ink);padding:10px;font-weight:600;min-height:44px}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{background:none;border:1px solid var(--line);color:var(--ink);padding:6px 12px}
+.go{background:var(--accent);color:#fff;border:0;padding:12px;font-weight:600}
+.ghost{background:none;border:1px solid var(--ink);color:var(--ink);padding:12px;font-weight:600}
+.pool{color:var(--mute);font-size:.88rem;margin:0}
+.mine{background:color-mix(in srgb,var(--accent) 10%,var(--surface));border-left:3px solid var(--accent);padding:8px 10px;margin:0;font-size:.9rem;border-radius:4px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.mine button{background:none;border:0;color:var(--ink);text-decoration:underline;padding:4px}
+.err{color:var(--accent);font-size:.9rem;min-height:1.2em;margin:0}
+.line{display:grid;grid-template-columns:1fr auto;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:.95rem}
+.line small{display:block;color:var(--mute)}
+.pos{color:var(--good);font-weight:600}
+.neg{color:var(--accent);font-weight:600}
+.zero{color:var(--mute);font-weight:600}
+.day{margin-bottom:18px}
+.day h3{display:flex;justify-content:space-between;gap:8px;border-bottom:2px solid var(--ink);padding-bottom:6px}
+.day h3 span{color:var(--mute);font-weight:400}
+.empty{color:var(--mute);padding:8px 0;margin:0}
+.note{color:var(--mute);font-size:.8rem;margin-top:32px}
+.note p{margin:0 0 6px}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main>
+ <nav><a href="/">Logg</a><a href="/betting.html" aria-current="page">Betting</a></nav>
+ <h1>Betting</h1>
+
+ <section>
+  <div class="players" id="players"></div>
+  <div class="me"><span id="meTxt"></span><button class="link" id="setDef" type="button">Bruk som standard på denne enheten</button><button class="link" id="rename" type="button">Endre navn</button></div>
+ </section>
+
+ <h2>Velg dag</h2>
+ <div class="card">
+  <label>Dato<input type="date" id="date"></label>
+  <p class="status" id="status"></p>
+  <button class="ghost" id="onTime" type="button" hidden>Hun kom i tide – avgjør dagen</button>
+  <button class="link" id="reopen" type="button" hidden>Angre «i tide» og åpne dagen igjen</button>
+ </div>
+
+ <div id="betting">
+  <div class="card">
+   <h3>Kommer hun for sent?</h3>
+   <div class="seg"><button type="button" id="ja" aria-pressed="false">Ja</button><button type="button" id="nei" aria-pressed="false">Nei</button></div>
+   <p class="pool" id="ynPool"></p>
+   <p class="mine" id="ynMine" hidden></p>
+   <label>Innsats (credits)<input type="number" id="ynStake" min="1" inputmode="numeric" placeholder="f.eks. 10"></label>
+   <div class="chips" data-for="ynStake"></div>
+   <p class="err" id="ynErr" role="alert"></p>
+   <button class="go" id="ynGo" type="button">Sett bet</button>
+  </div>
+
+  <div class="card">
+   <h3>Hvor mange minutter for sent?</h3>
+   <p class="pool" id="minPool"></p>
+   <p class="mine" id="minMine" hidden></p>
+   <div class="row">
+    <label>Ditt gjett (min)<input type="number" id="guess" min="0" max="600" inputmode="numeric" placeholder="0 = i tide"></label>
+    <label>Innsats (credits)<input type="number" id="minStake" min="1" inputmode="numeric" placeholder="f.eks. 10"></label>
+   </div>
+   <div class="chips" data-for="minStake"></div>
+   <p class="err" id="minErr" role="alert"></p>
+   <button class="go" id="minGo" type="button">Sett bet</button>
+  </div>
+ </div>
+ <div id="result"></div>
+
+ <h2>Åpne bets</h2>
+ <div id="open"></div>
+
+ <h2>Historikk</h2>
+ <div id="hist"></div>
+
+ <div class="note">
+  <p><span id="stat">Kobler til …</span></p>
+  <p>Alle starter med 100 credits. Man kan bette på i dag og senere dager, og endre eller trekke bettet til dagen er avgjort.</p>
+  <p>Dagen avgjøres automatisk når en forsinkelse registreres i loggen. Kom hun i tide, trykker noen «Hun kom i tide».</p>
+  <p>Ja/nei: de som tapte deler innsatsen sin på vinnerne, etter hvor mye hver vinner satset. Minutter: den som gjetter nærmest vinner hele potten (likt gjett deler etter innsats). Er det ingen å vinne fra, får alle innsatsen tilbake. Andres minuttgjett vises først når dagen er avgjort.</p>
+ </div>
+</main>
+
+<script>
+['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault()));
+const API='/api/betting',PKEY='forsinkelseslogg:profil',CKEY='forsinkelseslogg:kode';
+const ls={get:k=>{try{return localStorage.getItem(k)||''}catch(e){return''}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}}};
+let data={profiles:[],bets:[],results:{}},code=ls.get(CKEY),def=ls.get(PKEY),me=def||'p1',side=null,today='';
+const $=id=>document.getElementById(id);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const parse=s=>{const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+const dayName=s=>s===today?'i dag':parse(s).toLocaleDateString('nb-NO',{weekday:'short',day:'numeric',month:'short'});
+const cr=n=>Math.round(n)+' cr';
+const name=id=>(data.profiles.find(p=>p.id===id)||{name:id}).name;
+const signed=n=>{n=Math.round(n);const s=el('span',n>0?'pos':n<0?'neg':'zero',(n>0?'+':'')+n+' cr');return s};
+const resTxt=r=>r.min>0?r.min+' min for sent':'i tide';
+
+document.querySelectorAll('.chips').forEach(c=>[5,10,25,50].forEach(n=>{const b=el('button','chip',String(n));b.type='button';b.onclick=()=>{$(c.dataset.for).value=n};c.appendChild(b)}));
+
+async function api(method,body,q){
+ const h={'content-type':'application/json'};if(code)h['x-skrivekode']=code;
+ const r=await fetch(API+(q||''),{method,headers:h,body:body?JSON.stringify(body):undefined});
+ if(r.status===401){const c=prompt(code?'Feil skrivekode. Prøv igjen:':'Skriv inn skrivekoden:');if(c){code=c.trim();ls.set(CKEY,code);return api(method,body,q)}throw new Error('Trenger skrivekode.')}
+ const j=await r.json().catch(()=>({}));
+ if(!r.ok)throw new Error(j.error||'Noe gikk galt. Prøv igjen.');
+ return j;
+}
+async function load(){
+ try{
+  const r=await fetch(API,{cache:'no-store'});if(!r.ok)throw 0;
+  data=await r.json();
+  if(!today){today=data.today;$('date').min=today;$('date').value=today}
+  today=data.today;
+  $('stat').textContent='Delt mellom alle med lenken, oppdateres automatisk.';
+ }catch(e){$('stat').textContent='Får ikke kontakt med serveren akkurat nå. Prøver igjen …'}
+ render();
+}
+const run=async(fn,err)=>{if(err)$(err).textContent='';try{await fn();await load()}catch(x){if(err)$(err).textContent=x.message;else alert(x.message)}};
+
+$('date').addEventListener('change',()=>{side=null;render()});
+$('ja').onclick=()=>{side=true;render()};
+$('nei').onclick=()=>{side=false;render()};
+$('setDef').onclick=()=>{def=me;ls.set(PKEY,me);render()};
+$('rename').onclick=()=>{const n=prompt('Nytt navn for '+name(me)+':',name(me));if(n&&n.trim())run(()=>api('POST',{action:'rename',profile:me,name:n.trim()}))};
+$('onTime').onclick=()=>{const d=$('date').value;if(confirm('Avgjøre '+dayName(d)+' som «i tide»?'))run(()=>api('POST',{action:'settle',date:d}))};
+$('reopen').onclick=()=>run(()=>api('POST',{action:'reopen',date:$('date').value}));
+$('ynGo').onclick=()=>{
+ if(side===null){$('ynErr').textContent='Velg ja eller nei.';return}
+ run(async()=>{await api('POST',{action:'bet',type:'yn',profile:me,date:$('date').value,late:side,stake:$('ynStake').value});$('ynStake').value='';side=null},'ynErr');
+};
+$('minGo').onclick=()=>{
+ if($('guess').value===''){$('minErr').textContent='Skriv inn et gjett.';return}
+ run(async()=>{await api('POST',{action:'bet',type:'min',profile:me,date:$('date').value,guess:$('guess').value,stake:$('minStake').value});$('guess').value='';$('minStake').value=''},'minErr');
+};
+const withdraw=id=>run(()=>api('DELETE',null,'?id='+encodeURIComponent(id)));
+
+function render(){
+ const P=$('players');P.replaceChildren();
+ data.profiles.forEach(p=>{
+  const b=el('button','player');b.type='button';b.setAttribute('aria-pressed',p.id===me);
+  b.append(el('span',null,(p.id===def?'★ ':'')+p.name),el('b',null,Math.round(p.balance)),el('small',null,'credits'));
+  b.onclick=()=>{me=p.id;render()};P.appendChild(b);
+ });
+ $('meTxt').textContent='Du spiller som '+name(me)+(me===def?' (standard på denne enheten).':'.');
+ $('setDef').hidden=me===def;
+
+ const d=$('date').value,res=data.results[d],bets=data.bets.filter(b=>b.date===d);
+ const yn=bets.filter(b=>b.type==='yn'),mn=bets.filter(b=>b.type==='min');
+ const myYn=yn.find(b=>b.profile===me),myMin=mn.find(b=>b.profile===me);
+ const past=d&&today&&d<today;
+ $('status').replaceChildren();
+ if(res){$('status').append('Avgjort: ',el('b',null,resTxt(res)),res.source==='logg'?' (fra loggen).':'.')}
+ else if(past)$('status').textContent='Ikke avgjort ennå. Nye bets er stengt for dager som har vært.';
+ else $('status').textContent=d===today?'Åpen for bets. Avgjøres når forsinkelsen registreres i loggen, eller når noen trykker «i tide».':'Åpen for bets.';
+ $('onTime').hidden=!!res||!d||!today||d>today;
+ $('reopen').hidden=!(res&&res.source==='manuell');
+
+ $('betting').hidden=!!res||past;
+ $('ja').setAttribute('aria-pressed',side===true);$('nei').setAttribute('aria-pressed',side===false);
+ const sum=a=>a.reduce((s,b)=>s+b.stake,0);
+ const ja=yn.filter(b=>b.late),nei=yn.filter(b=>!b.late);
+ const who=a=>a.map(b=>name(b.profile)).join(', ')||'ingen';
+ $('ynPool').textContent=yn.length?'Ja: '+cr(sum(ja))+' ('+who(ja)+') · Nei: '+cr(sum(nei))+' ('+who(nei)+')':'Ingen bets ennå.';
+ $('minPool').textContent=mn.length?'Pott: '+cr(sum(mn))+' fra '+mn.map(b=>name(b.profile)).join(', ')+'.':'Ingen bets ennå.';
+ const mine=(box,b,txt)=>{const m=$(box);m.hidden=!b;m.replaceChildren();if(!b)return;const w=el('button',null,'Trekk');w.type='button';w.onclick=()=>withdraw(b.id);m.append(el('span',null,txt),w)};
+ mine('ynMine',myYn,myYn&&'Ditt bet: '+(myYn.late?'Ja':'Nei')+', '+myYn.stake+' cr. Sett nytt for å endre.');
+ mine('minMine',myMin,myMin&&'Ditt bet: '+myMin.guess+' min, '+myMin.stake+' cr. Sett nytt for å endre.');
+ $('ynGo').textContent=myYn?'Endre bet':'Sett bet';$('minGo').textContent=myMin?'Endre bet':'Sett bet';
+
+ const R=$('result');R.replaceChildren();
+ if(res&&bets.length)R.appendChild(dayBlock(d,res,bets));
+
+ // Open bets on other days, so nobody forgets a stake that is held.
+ const O=$('open');O.replaceChildren();
+ const open=data.bets.filter(b=>!data.results[b.date]).sort((a,b)=>a.date<b.date?-1:1);
+ if(!open.length)O.appendChild(el('p','empty','Ingen åpne bets.'));
+ open.forEach(b=>{
+  const r=el('div','line'),a=el('div',null,name(b.profile)+': '+betTxt(b));
+  a.appendChild(el('small',null,dayName(b.date)));r.append(a,el('b',null,b.stake+' cr'));O.appendChild(r);
+ });
+
+ const H=$('hist');H.replaceChildren();
+ const days=[...new Set(data.bets.filter(b=>data.results[b.date]&&b.date!==d).map(b=>b.date))].sort().reverse();
+ if(!days.length)H.appendChild(el('p','empty','Ingen avgjorte dager ennå.'));
+ days.slice(0,20).forEach(x=>H.appendChild(dayBlock(x,data.results[x],data.bets.filter(b=>b.date===x))));
+}
+const betTxt=b=>b.type==='yn'?(b.late?'for sent':'i tide'):(b.guess==null?'minutter (skjult)':'gjettet '+b.guess+' min');
+function dayBlock(d,res,bets){
+ const w=el('div','day'),h=el('h3',null,dayName(d));h.appendChild(el('span',null,resTxt(res)));w.appendChild(h);
+ bets.sort((a,b)=>a.type<b.type?1:-1).forEach(b=>{
+  const r=el('div','line'),a=el('div',null,name(b.profile)+': '+betTxt(b));
+  a.appendChild(el('small',null,(b.type==='yn'?'Ja/nei':'Minutter')+' · innsats '+b.stake+' cr'));
+  r.append(a,signed(b.payout-b.stake));w.appendChild(r);
+ });
+ return w;
+}
+load();
+setInterval(()=>{if(!document.hidden)load()},10000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+</script>
+</body>
+</html>

@@ -15,8 +15,11 @@ html{scroll-padding-top:env(safe-area-inset-top,0px)}
 html,body{touch-action:pan-x pan-y}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:'Bricolage Grotesque',system-ui,-apple-system,'Segoe UI',sans-serif;line-height:1.45}
 main{max-width:640px;margin:0 auto;padding:24px 18px 48px}
-h1{font-size:clamp(2rem,9vw,3.2rem);font-weight:800;letter-spacing:-.035em;line-height:1;margin:8px 0 28px}
+h1{font-size:clamp(2rem,9vw,3.2rem);font-weight:800;letter-spacing:-.035em;line-height:1;margin:16px 0 28px}
 h2{font-size:1.05rem;font-weight:600;margin:36px 0 12px}
+nav{display:flex;gap:16px;font-size:.95rem}
+nav a{color:var(--mute);text-decoration:none;padding:6px 0}
+nav a[aria-current]{color:var(--ink);font-weight:600;border-bottom:2px solid var(--accent)}
 .hero{border-bottom:2px solid var(--ink);padding-bottom:18px}
 .hero small{display:block;color:var(--mute);font-size:.95rem}
 .big{font-size:clamp(3rem,16vw,5.5rem);font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--accent);margin-top:4px}
@@ -57,6 +60,7 @@ button{font:inherit;cursor:pointer;border-radius:6px}
 </head>
 <body>
 <main>
+ <nav><a href="/" aria-current="page">Logg</a><a href="/betting.html">Betting</a></nav>
  <h1>Forsinkelseslogg</h1>
 
  <section class="hero">
