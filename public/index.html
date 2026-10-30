@@ -19,6 +19,7 @@ h1{font-size:clamp(2rem,9vw,3.2rem);font-weight:800;letter-spacing:-.035em;line-
 h2{font-size:1.05rem;font-weight:600;margin:36px 0 12px}
 nav{display:flex;gap:16px;font-size:.95rem}
 nav a{color:var(--mute);text-decoration:none;padding:6px 0}
+nav a b{background:var(--accent);color:#fff;border-radius:9px;padding:0 6px;font-size:.75rem;margin-left:4px}
 nav a[aria-current]{color:var(--ink);font-weight:600;border-bottom:2px solid var(--accent)}
 .hero{border-bottom:2px solid var(--ink);padding-bottom:18px}
 .hero small{display:block;color:var(--mute);font-size:.95rem}
@@ -60,7 +61,7 @@ button{font:inherit;cursor:pointer;border-radius:6px}
 </head>
 <body>
 <main>
- <nav><a href="/" aria-current="page">Logg</a><a href="/betting.html">Betting</a></nav>
+ <nav><a href="/" aria-current="page">Logg</a><a href="/betting.html" id="betLink">Betting</a></nav>
  <h1>Forsinkelseslogg</h1>
 
  <section class="hero">
@@ -144,6 +145,16 @@ async function load(){
   $('stat').textContent='Delt liste: oppdateres automatisk for alle med lenken.';
  }catch(e){$('stat').textContent='Får ikke kontakt med serveren akkurat nå. Prøver igjen …'}
  render();
+ betBadge();
+}
+// Show on the Betting tab how many bets are placed for today.
+async function betBadge(){
+ try{
+  const d=await (await fetch('/api/betting',{cache:'no-store'})).json();
+  const n=d.bets.filter(b=>b.date===d.today&&!d.results[b.date]).length;
+  $('betLink').replaceChildren('Betting');
+  if(n)$('betLink').appendChild(el('b',null,n+(n===1?' bet i dag':' bets i dag')));
+ }catch(e){}
 }
 function checkDup(){
  const d=$('date').value,box=$('dup');
