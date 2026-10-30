@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Forsinkelsesbetting</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Forsinkelser">
+<meta name="theme-color" content="#EEF2F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F161C" media="(prefers-color-scheme: dark)">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#EEF2F5;--surface:#fff;--ink:#16202B;--mute:#5E6C7A;--line:#D5DDE4;--accent:#D6336C;--good:#1F8A5B;color-scheme:light;
@@ -61,6 +67,8 @@ button:disabled{opacity:.5;cursor:default}
 .note p{margin:0 0 6px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(600px,calc(100% - 32px));background:var(--ink);color:var(--bg);border-radius:10px;padding:12px 14px;font-size:.95rem;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:10}
 .line.new{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+.push{display:flex;flex-wrap:wrap;gap:0 12px;align-items:center;font-size:.9rem;color:var(--mute)}
+.push p{margin:6px 0}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -72,6 +80,7 @@ button:disabled{opacity:.5;cursor:default}
  <section>
   <div class="players" id="players"></div>
   <div class="me"><span id="meTxt"></span><button class="link" id="setDef" type="button">Bruk som standard på denne enheten</button><button class="link" id="rename" type="button">Endre navn</button></div>
+  <div class="push"><p id="pushTxt"></p><button class="link" id="pushBtn" type="button" hidden></button></div>
  </section>
 
  <h2>Velg dag</h2>
@@ -170,7 +179,44 @@ const run=async(fn,err)=>{if(err)$(err).textContent='';try{await fn();await load
 $('date').addEventListener('change',()=>{side=null;render()});
 $('ja').onclick=()=>{side=true;render()};
 $('nei').onclick=()=>{side=false;render()};
-$('setDef').onclick=()=>{def=me;ls.set(PKEY,me);render()};
+$('setDef').onclick=()=>{def=me;ls.set(PKEY,me);render();if(pushOn)savePush()};
+
+// Push notifications: on iPhone they only work from the Home Screen app (iOS 16.4+).
+let pushOn=false;
+const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const b64=k=>{const p='='.repeat((4-k.length%4)%4),r=atob((k+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0))};
+async function sub(){const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()}
+async function savePush(off){
+ const s=await sub();if(!s)return;
+ await fetch(API+'?push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sub:s.toJSON(),profile:def||me,off:!!off})});
+ if(off)await s.unsubscribe();
+}
+async function pushUI(){
+ const t=$('pushTxt'),b=$('pushBtn');
+ if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
+  t.textContent=ios&&!standalone?'Vil du ha varsler? Trykk Del → «Legg til på Hjem-skjerm», og åpne appen derfra.':'Varsler støttes ikke i denne nettleseren.';
+  b.hidden=true;return;
+ }
+ pushOn=!!(await sub().catch(()=>null))&&Notification.permission==='granted';
+ if(Notification.permission==='denied'){t.textContent='Varsler er blokkert. Slå dem på i innstillingene for appen.';b.hidden=true;return}
+ t.textContent=pushOn?'Varsler er på for nye bets og resultater.':'Få varsel når noen better og når resultatet er klart.';
+ b.textContent=pushOn?'Slå av':'Slå på varsler';b.hidden=false;
+}
+$('pushBtn').onclick=async()=>{
+ const b=$('pushBtn');b.disabled=true;
+ try{
+  if(pushOn)await savePush(true);
+  else{
+   if(await Notification.requestPermission()!=='granted')throw new Error('Du må tillate varsler for å få dem.');
+   if(!data.vapidKey)throw new Error('Får ikke kontakt med serveren. Prøv igjen.');
+   const reg=await navigator.serviceWorker.ready;
+   await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(data.vapidKey)});
+   await savePush();
+  }
+ }catch(x){alert(x.message||'Kunne ikke slå på varsler.')}
+ b.disabled=false;pushUI();
+};
 $('rename').onclick=()=>{const n=prompt('Nytt navn for '+name(me)+':',name(me));if(n&&n.trim())run(()=>api('POST',{action:'rename',profile:me,name:n.trim()}))};
 $('onTime').onclick=()=>{const d=$('date').value;if(confirm('Avgjøre '+dayName(d)+' som «i tide»?'))run(()=>api('POST',{action:'settle',date:d}))};
 $('reopen').onclick=()=>run(()=>api('POST',{action:'reopen',date:$('date').value}));
@@ -249,6 +295,8 @@ function dayBlock(d,res,bets){
 load();
 setInterval(()=>{if(!document.hidden)load()},10000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
+pushUI();
 </script>
 </body>
 </html>

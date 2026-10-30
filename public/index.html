@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Forsinkelseslogg</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Forsinkelser">
+<meta name="theme-color" content="#EEF2F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F161C" media="(prefers-color-scheme: dark)">
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;600;800&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#EEF2F5;--surface:#fff;--ink:#16202B;--mute:#5E6C7A;--line:#D5DDE4;--accent:#D6336C;color-scheme:light;
@@ -220,6 +226,7 @@ function render(){
 load();
 setInterval(()=>{if(!document.hidden)load()},10000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
 </script>
 </body>
 </html>
