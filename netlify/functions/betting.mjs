@@ -20,6 +20,8 @@ const authorized = (req) => {
 };
 
 const START = 100;
+// Fixed price per bet type, so every bet in a pot weighs the same.
+const STAKES = { yn: 5, min: 10 };
 const PROFILES = ["p1", "p2", "p3"];
 const DEFAULT_NAMES = { p1: "Spiller 1", p2: "Spiller 2", p3: "Spiller 3" };
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -87,7 +89,7 @@ export default async (req) => {
     // Guesses stay hidden until the day is settled, so nobody can undercut by one minute.
     const shown = bets.map((b) => (res[b.date] || b.type !== "min" ? b : { ...b, guess: null }));
     const profiles = PROFILES.map((id) => ({ id, name: names[id], balance: balances[id] }));
-    return json({ profiles, bets: shown, results: res, today: todayOslo(), start: START, needsCode: !!writeCode() });
+    return json({ profiles, bets: shown, results: res, today: todayOslo(), start: START, stakes: STAKES, needsCode: !!writeCode() });
   }
 
   if (!authorized(req)) return json({ error: "Feil skrivekode" }, 401);
@@ -124,8 +126,7 @@ export default async (req) => {
       if (!["yn", "min"].includes(b.type)) return json({ error: "Ukjent bettype" }, 400);
       if (b.date < todayOslo()) return json({ error: "Kan ikke bette på en dag som har vært" }, 400);
       if (res[b.date]) return json({ error: "Dagen er allerede avgjort" }, 409);
-      const stake = parseInt(b.stake, 10);
-      if (!(stake >= 1)) return json({ error: "Innsatsen må være minst 1" }, 400);
+      const stake = STAKES[b.type];
       const key = `bet/${b.date}/${b.profile}/${b.type}`;
       const old = bets.find((x) => x.id === key);
       if (stake > balances[b.profile] + (old ? old.stake : 0))

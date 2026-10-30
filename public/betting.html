@@ -42,8 +42,6 @@ button:disabled{opacity:.5;cursor:default}
 .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .seg button{background:none;border:1px solid var(--line);color:var(--ink);padding:10px;font-weight:600;min-height:44px}
 .seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
-.chips{display:flex;gap:8px;flex-wrap:wrap}
-.chip{background:none;border:1px solid var(--line);color:var(--ink);padding:6px 12px}
 .go{background:var(--accent);color:#fff;border:0;padding:12px;font-weight:600}
 .ghost{background:none;border:1px solid var(--ink);color:var(--ink);padding:12px;font-weight:600}
 .pool{color:var(--mute);font-size:.88rem;margin:0}
@@ -88,8 +86,6 @@ button:disabled{opacity:.5;cursor:default}
    <div class="seg"><button type="button" id="ja" aria-pressed="false">Ja</button><button type="button" id="nei" aria-pressed="false">Nei</button></div>
    <p class="pool" id="ynPool"></p>
    <p class="mine" id="ynMine" hidden></p>
-   <label>Innsats (credits)<input type="number" id="ynStake" min="1" inputmode="numeric" placeholder="f.eks. 10"></label>
-   <div class="chips" data-for="ynStake"></div>
    <p class="err" id="ynErr" role="alert"></p>
    <button class="go" id="ynGo" type="button">Sett bet</button>
   </div>
@@ -98,11 +94,7 @@ button:disabled{opacity:.5;cursor:default}
    <h3>Hvor mange minutter for sent?</h3>
    <p class="pool" id="minPool"></p>
    <p class="mine" id="minMine" hidden></p>
-   <div class="row">
-    <label>Ditt gjett (min)<input type="number" id="guess" min="0" max="600" inputmode="numeric" placeholder="0 = i tide"></label>
-    <label>Innsats (credits)<input type="number" id="minStake" min="1" inputmode="numeric" placeholder="f.eks. 10"></label>
-   </div>
-   <div class="chips" data-for="minStake"></div>
+   <label>Ditt gjett (min)<input type="number" id="guess" min="0" max="600" inputmode="numeric" placeholder="0 = i tide"></label>
    <p class="err" id="minErr" role="alert"></p>
    <button class="go" id="minGo" type="button">Sett bet</button>
   </div>
@@ -119,7 +111,9 @@ button:disabled{opacity:.5;cursor:default}
   <p><span id="stat">Kobler til …</span></p>
   <p>Alle starter med 100 credits. Man kan bette på i dag og senere dager, og endre eller trekke bettet til dagen er avgjort.</p>
   <p>Dagen avgjøres automatisk når en forsinkelse registreres i loggen. Kom hun i tide, trykker noen «Hun kom i tide».</p>
-  <p>Ja/nei: de som tapte deler innsatsen sin på vinnerne, etter hvor mye hver vinner satset. Minutter: den som gjetter nærmest vinner hele potten (likt gjett deler etter innsats). Er det ingen å vinne fra, får alle innsatsen tilbake. Andres minuttgjett vises først når dagen er avgjort.</p>
+  <p>Ja/nei koster 5 credits. Alle som traff deler likt det de som bommet satset, og får sine egne 5 tilbake.</p>
+  <p>Minutter koster 10 credits. Den som gjetter nærmest vinner hele potten. Er flere like nære, deles potten likt. Andres gjett vises først når dagen er avgjort.</p>
+  <p>Traff alle, eller ingen, får alle innsatsen tilbake.</p>
  </div>
 </main>
 
@@ -137,7 +131,7 @@ const name=id=>(data.profiles.find(p=>p.id===id)||{name:id}).name;
 const signed=n=>{n=Math.round(n);const s=el('span',n>0?'pos':n<0?'neg':'zero',(n>0?'+':'')+n+' cr');return s};
 const resTxt=r=>r.min>0?r.min+' min for sent':'i tide';
 
-document.querySelectorAll('.chips').forEach(c=>[5,10,25,50].forEach(n=>{const b=el('button','chip',String(n));b.type='button';b.onclick=()=>{$(c.dataset.for).value=n};c.appendChild(b)}));
+const price=t=>(data.stakes||{yn:5,min:10})[t];
 
 async function api(method,body,q){
  const h={'content-type':'application/json'};if(code)h['x-skrivekode']=code;
@@ -168,11 +162,11 @@ $('onTime').onclick=()=>{const d=$('date').value;if(confirm('Avgjøre '+dayName(
 $('reopen').onclick=()=>run(()=>api('POST',{action:'reopen',date:$('date').value}));
 $('ynGo').onclick=()=>{
  if(side===null){$('ynErr').textContent='Velg ja eller nei.';return}
- run(async()=>{await api('POST',{action:'bet',type:'yn',profile:me,date:$('date').value,late:side,stake:$('ynStake').value});$('ynStake').value='';side=null},'ynErr');
+ run(async()=>{await api('POST',{action:'bet',type:'yn',profile:me,date:$('date').value,late:side});side=null},'ynErr');
 };
 $('minGo').onclick=()=>{
  if($('guess').value===''){$('minErr').textContent='Skriv inn et gjett.';return}
- run(async()=>{await api('POST',{action:'bet',type:'min',profile:me,date:$('date').value,guess:$('guess').value,stake:$('minStake').value});$('guess').value='';$('minStake').value=''},'minErr');
+ run(async()=>{await api('POST',{action:'bet',type:'min',profile:me,date:$('date').value,guess:$('guess').value});ls.set('forsinkelseslogg:gjett:'+$('date').value+':'+me,$('guess').value);$('guess').value=''},'minErr');
 };
 const withdraw=id=>run(()=>api('DELETE',null,'?id='+encodeURIComponent(id)));
 
@@ -205,9 +199,9 @@ function render(){
  $('ynPool').textContent=yn.length?'Ja: '+cr(sum(ja))+' ('+who(ja)+') · Nei: '+cr(sum(nei))+' ('+who(nei)+')':'Ingen bets ennå.';
  $('minPool').textContent=mn.length?'Pott: '+cr(sum(mn))+' fra '+mn.map(b=>name(b.profile)).join(', ')+'.':'Ingen bets ennå.';
  const mine=(box,b,txt)=>{const m=$(box);m.hidden=!b;m.replaceChildren();if(!b)return;const w=el('button',null,'Trekk');w.type='button';w.onclick=()=>withdraw(b.id);m.append(el('span',null,txt),w)};
- mine('ynMine',myYn,myYn&&'Ditt bet: '+(myYn.late?'Ja':'Nei')+', '+myYn.stake+' cr. Sett nytt for å endre.');
- mine('minMine',myMin,myMin&&'Ditt bet: '+myMin.guess+' min, '+myMin.stake+' cr. Sett nytt for å endre.');
- $('ynGo').textContent=myYn?'Endre bet':'Sett bet';$('minGo').textContent=myMin?'Endre bet':'Sett bet';
+ mine('ynMine',myYn,myYn&&'Ditt bet: '+(myYn.late?'Ja':'Nei')+', '+myYn.stake+' cr. Velg på nytt for å endre.');
+ mine('minMine',myMin,myMin&&'Ditt bet: '+(myMin.guess??(ls.get('forsinkelseslogg:gjett:'+d+':'+me)||'?'))+' min, '+myMin.stake+' cr. Skriv nytt gjett for å endre.');
+ $('ynGo').textContent=myYn?'Endre bet':'Sett bet ('+price('yn')+' cr)';$('minGo').textContent=myMin?'Endre bet':'Sett bet ('+price('min')+' cr)';
 
  const R=$('result');R.replaceChildren();
  if(res&&bets.length)R.appendChild(dayBlock(d,res,bets));
