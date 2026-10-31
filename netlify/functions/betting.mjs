@@ -1,10 +1,8 @@
-import { getStore } from "@netlify/blobs";
+import { store, START, STAKES, PROFILES, DATE, todayOslo, state, vapid, subKey, notifyBet, notifyResult } from "../lib/betting.mjs";
 
 // Betting on the delay log. Bets, profile names and manual results live in
 // their own store; the delay entries are read from the log's store so a
 // registered delay settles the day automatically.
-const store = () => getStore({ name: "betting", consistency: "strong" });
-const logStore = () => getStore({ name: "forsinkelser", consistency: "strong" });
 const json = (body, status = 200) =>
   new Response(JSON.stringify(body), {
     status,
@@ -19,68 +17,6 @@ const authorized = (req) => {
   return (req.headers.get("x-skrivekode") || "").trim() === code;
 };
 
-const START = 100;
-// Fixed price per bet type, so every bet in a pot weighs the same.
-const STAKES = { yn: 5, min: 10 };
-const PROFILES = ["p1", "p2", "p3"];
-const DEFAULT_NAMES = { p1: "Spiller 1", p2: "Spiller 2", p3: "Spiller 3" };
-const DATE = /^\d{4}-\d{2}-\d{2}$/;
-const todayOslo = () => new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Oslo" }).format(new Date());
-
-const all = async (s, prefix) => {
-  const { blobs } = await s.list(prefix ? { prefix } : undefined);
-  return (await Promise.all(blobs.map((b) => s.get(b.key, { type: "json" })))).filter(Boolean);
-};
-
-// Result per date in minutes (0 = on time). A manual result wins; otherwise
-// the day is settled by the delay log as soon as it has an entry.
-function results(rounds, log) {
-  const r = {};
-  for (const e of log) r[e.date] = { min: (r[e.date]?.min || 0) + e.min, source: "logg" };
-  for (const x of rounds) r[x.date] = { min: x.min, source: "manuell" };
-  return r;
-}
-
-// Pool betting: the losers' stakes are shared among the winners in proportion
-// to what they staked. If nobody (or everybody) wins, stakes are returned.
-function payPool(bets, isWinner) {
-  const win = bets.filter(isWinner);
-  if (!win.length || win.length === bets.length) return bets.forEach((b) => (b.payout = b.stake));
-  const W = win.reduce((s, b) => s + b.stake, 0);
-  const L = bets.reduce((s, b) => s + b.stake, 0) - W;
-  bets.forEach((b) => (b.payout = isWinner(b) ? b.stake + (b.stake / W) * L : 0));
-}
-
-function compute(bets, res) {
-  const balances = Object.fromEntries(PROFILES.map((p) => [p, START]));
-  const byKey = {};
-  for (const b of bets) (byKey[b.date + "|" + b.type] ||= []).push(b);
-  for (const [k, group] of Object.entries(byKey)) {
-    const r = res[k.split("|")[0]];
-    if (!r) { group.forEach((b) => { b.payout = null; balances[b.profile] -= b.stake; }); continue; }
-    if (group[0].type === "yn") payPool(group, (b) => b.late === (r.min > 0));
-    else {
-      const best = Math.min(...group.map((b) => Math.abs(b.guess - r.min)));
-      payPool(group, (b) => Math.abs(b.guess - r.min) === best);
-    }
-    group.forEach((b) => (balances[b.profile] += b.payout - b.stake));
-  }
-  return balances;
-}
-
-async function state() {
-  const s = store();
-  const [bets, rounds, names, log] = await Promise.all([
-    all(s, "bet/"),
-    all(s, "round/"),
-    s.get("profiles", { type: "json" }),
-    all(logStore()),
-  ]);
-  const res = results(rounds, log);
-  const balances = compute(bets, res);
-  return { bets, res, balances, names: { ...DEFAULT_NAMES, ...(names || {}) } };
-}
-
 export default async (req) => {
   const s = store();
 
@@ -89,7 +25,22 @@ export default async (req) => {
     // Guesses stay hidden until the day is settled, so nobody can undercut by one minute.
     const shown = bets.map((b) => (res[b.date] || b.type !== "min" ? b : { ...b, guess: null }));
     const profiles = PROFILES.map((id) => ({ id, name: names[id], balance: balances[id] }));
-    return json({ profiles, bets: shown, results: res, today: todayOslo(), start: START, stakes: STAKES, needsCode: !!writeCode() });
+    const vapidKey = (await vapid(s)).publicKey;
+    return json({ profiles, bets: shown, results: res, today: todayOslo(), start: START, stakes: STAKES, vapidKey, needsCode: !!writeCode() });
+  }
+
+  // Turning notifications on or off only touches this device, so it needs no write code.
+  if (req.method === "POST" && new URL(req.url).searchParams.has("push")) {
+    let b;
+    try { b = await req.json(); } catch { return json({ error: "Ugyldig data" }, 400); }
+    const endpoint = b.sub?.endpoint;
+    if (typeof endpoint !== "string" || !endpoint.startsWith("https://")) return json({ error: "Ugyldig abonnement" }, 400);
+    if (b.off) await s.delete(subKey(endpoint));
+    else {
+      if (!PROFILES.includes(b.profile)) return json({ error: "Ukjent profil" }, 400);
+      await s.setJSON(subKey(endpoint), { sub: b.sub, profile: b.profile, ts: Date.now() });
+    }
+    return json({ ok: true });
   }
 
   if (!authorized(req)) return json({ error: "Feil skrivekode" }, 401);
@@ -113,6 +64,7 @@ export default async (req) => {
       if (res[b.date]) return json({ error: "Dagen er allerede avgjort" }, 409);
       if (b.date > todayOslo()) return json({ error: "Dagen har ikke vært ennå" }, 400);
       await s.setJSON("round/" + b.date, { date: b.date, min: 0, ts: Date.now() });
+      await notifyResult(s, b.date).catch(() => {});
       return json({ ok: true });
     }
 
@@ -141,6 +93,7 @@ export default async (req) => {
         rec.guess = guess;
       }
       await s.setJSON(key, rec);
+      await notifyBet(s, rec, names, !!old).catch(() => {});
       return json(rec, 201);
     }
 

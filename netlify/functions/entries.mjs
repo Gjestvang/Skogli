@@ -1,4 +1,5 @@
 import { getStore } from "@netlify/blobs";
+import { store as betStore, state as betState, notifyResult } from "../lib/betting.mjs";
 
 // Each registration is its own blob (key = id), so two people saving at
 // the same time never overwrite each other.
@@ -36,9 +37,13 @@ export default async (req) => {
     const min = parseInt(b.min, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(b.date || "") || !(min >= 1 && min <= 600))
       return json({ error: "Ugyldig dato eller minutter" }, 400);
+    // A first delay on a day with open bets settles it, so the players get the result.
+    const before = await betState();
+    const settles = !before.res[b.date] && before.bets.some((x) => x.date === b.date);
     const id = Date.now() + "-" + Math.random().toString(36).slice(2, 7);
     const rec = { id, date: b.date, min, note: String(b.note || "").slice(0, 80), ts: Date.now() };
     await s.setJSON(id, rec);
+    if (settles) await notifyResult(betStore(), b.date).catch(() => {});
     return json(rec, 201);
   }
 
