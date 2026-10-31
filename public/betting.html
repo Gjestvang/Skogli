@@ -67,8 +67,9 @@ button:disabled{opacity:.5;cursor:default}
 .note p{margin:0 0 6px}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));width:min(600px,calc(100% - 32px));background:var(--ink);color:var(--bg);border-radius:10px;padding:12px 14px;font-size:.95rem;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:10}
 .line.new{background:color-mix(in srgb,var(--accent) 10%,transparent)}
-.push{display:flex;flex-wrap:wrap;gap:0 12px;align-items:center;font-size:.9rem;color:var(--mute)}
-.push p{margin:6px 0}
+.push{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-top:12px;display:grid;gap:8px;font-size:.9rem}
+.push p{margin:0;color:var(--mute)}
+.push .ghost{padding:10px}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -80,7 +81,7 @@ button:disabled{opacity:.5;cursor:default}
  <section>
   <div class="players" id="players"></div>
   <div class="me"><span id="meTxt"></span><button class="link" id="setDef" type="button">Bruk som standard på denne enheten</button><button class="link" id="rename" type="button">Endre navn</button></div>
-  <div class="push"><p id="pushTxt"></p><button class="link" id="pushBtn" type="button" hidden></button></div>
+  <div class="push"><b>Varsler</b><p id="pushTxt">Sjekker om varsler er mulig …</p><button class="ghost" id="pushBtn" type="button" hidden></button></div>
  </section>
 
  <h2>Velg dag</h2>
@@ -186,7 +187,10 @@ let pushOn=false;
 const ios=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const standalone=matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 const b64=k=>{const p='='.repeat((4-k.length%4)%4),r=atob((k+p).replace(/-/g,'+').replace(/_/g,'/'));return Uint8Array.from(r,c=>c.charCodeAt(0))};
-async function sub(){const reg=await navigator.serviceWorker.ready;return reg.pushManager.getSubscription()}
+// Never wait forever on the service worker: register it ourselves and give up after a few seconds.
+const timeout=(p,ms)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('Tidsavbrudd')),ms))]);
+async function swReg(){await navigator.serviceWorker.register('/sw.js');return timeout(navigator.serviceWorker.ready,8000)}
+async function sub(){const reg=await navigator.serviceWorker.getRegistration();return reg?reg.pushManager.getSubscription():null}
 async function savePush(off){
  const s=await sub();if(!s)return;
  await fetch(API+'?push',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({sub:s.toJSON(),profile:def||me,off:!!off})});
@@ -195,7 +199,7 @@ async function savePush(off){
 async function pushUI(){
  const t=$('pushTxt'),b=$('pushBtn');
  if(!('serviceWorker' in navigator)||!('PushManager' in window)||!('Notification' in window)){
-  t.textContent=ios&&!standalone?'Vil du ha varsler? Trykk Del → «Legg til på Hjem-skjerm», og åpne appen derfra.':'Varsler støttes ikke i denne nettleseren.';
+  t.textContent=ios&&!standalone?'På iPhone virker varsler bare fra appen på Hjem-skjermen. Trykk Del → «Legg til på Hjem-skjerm» her i Safari, og åpne appen derfra. Ligger appen allerede på Hjem-skjermen fra før, slett den og legg den til på nytt.':ios?'Varsler krever iOS 16.4 eller nyere. Oppdater iPhonen under Innstillinger → Generelt → Programvareoppdatering.':'Varsler støttes ikke i denne nettleseren.';
   b.hidden=true;return;
  }
  pushOn=!!(await sub().catch(()=>null))&&Notification.permission==='granted';
@@ -210,11 +214,11 @@ $('pushBtn').onclick=async()=>{
   else{
    if(await Notification.requestPermission()!=='granted')throw new Error('Du må tillate varsler for å få dem.');
    if(!data.vapidKey)throw new Error('Får ikke kontakt med serveren. Prøv igjen.');
-   const reg=await navigator.serviceWorker.ready;
+   const reg=await swReg();
    await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64(data.vapidKey)});
    await savePush();
   }
- }catch(x){alert(x.message||'Kunne ikke slå på varsler.')}
+ }catch(x){alert('Kunne ikke slå på varsler: '+(x.message||x))}
  b.disabled=false;pushUI();
 };
 $('rename').onclick=()=>{const n=prompt('Nytt navn for '+name(me)+':',name(me));if(n&&n.trim())run(()=>api('POST',{action:'rename',profile:me,name:n.trim()}))};
@@ -296,7 +300,7 @@ load();
 setInterval(()=>{if(!document.hidden)load()},10000);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)load()});
 if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(()=>{});
-pushUI();
+pushUI().catch(x=>{$("pushTxt").textContent="Feil ved sjekk av varsler: "+(x.message||x)});
 </script>
 </body>
 </html>
